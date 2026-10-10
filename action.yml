@@ -1,0 +1,50 @@
+name: 'WP Release Zip'
+description: 'Create a ZIP of a WordPress plugin or theme with a {slug}/ root folder, respecting .distignore.'
+author: 'WP Elevator'
+branding:
+  icon: 'archive'
+  color: 'blue'
+
+inputs:
+  source-dir:
+    description: 'Directory to archive. Defaults to the repository root.'
+    default: ''
+  slug:
+    description: 'Plugin or theme slug.'
+    default: ${{ github.event.repository.name }}
+  version:
+    description: 'Version for the ZIP and its filename. Defaults to the Version header.'
+    default: ''
+  filename-format:
+    description: 'Filename with {slug} and {version}. Defaults to {slug}.{version}.'
+    default: ''
+  output:
+    description: 'Path of the ZIP. Defaults to the filename in the repository root.'
+    default: ''
+  distignore:
+    description: 'Path to the ignore file, or "false" to not read one. Defaults to .distignore in source-dir when present.'
+    default: ''
+  exclude:
+    description: 'Extra gitignore-style patterns to leave out, separated by commas or new lines, like "build/,assets/*,images/**/*".'
+    default: ''
+  root-folder:
+    description: 'Folder inside the ZIP. Defaults to slug; "false" puts the files at the ZIP root.'
+    default: ''
+  checksums:
+    description: 'Also write the checksums manifest of the archived files next to the ZIP.'
+    default: 'false'
+  force:
+    description: 'Overwrite existing output files.'
+    default: 'false'
+
+outputs:
+  zip-path:
+    description: 'Absolute path of the ZIP.'
+  checksums-path:
+    description: 'Absolute path of the checksums manifest, empty unless checksums is true.'
+  files:
+    description: 'Number of archived files.'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
