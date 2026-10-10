@@ -59,6 +59,17 @@ A ZIP or manifest written inside `source-dir`, and its `.sig`, is never archived
 | `checksums-path` | Absolute path of the checksums manifest, empty unless `checksums` is `true`. |
 | `files` | Number of archived files. |
 
+## Without the action
+
+When you can't use a GitHub Action, such as on another CI system or in a local release script, add the same tooling as a development dependency and run the CLI command that the action runs:
+
+```bash
+npm install --save-dev @wpelevator/wp-release
+npx wp-release zip dist --checksums
+```
+
+The inputs map to the flags of [`wp-release zip`](../../js/wp-release#zip): `source-dir` is the first argument, `filename-format`, `output`, `distignore`, `exclude`, `checksums` and `force` keep their names, `root-folder: false` is `--no-root-folder` and `distignore: false` is `--no-distignore`. Add `--json` to read the paths of the ZIP and the manifest from the output. The CLI needs Node.js 22.12 or later, and has no other dependencies on the runner. Run `npx wp-release zip --help` for all options.
+
 ## How it works
 
 [`src/run.ts`](src/run.ts) reads the inputs with [`@actions/core`](https://github.com/actions/toolkit/tree/main/packages/core), maps them to the arguments of the [`wp-release zip`](https://www.npmjs.com/package/@wpelevator/wp-release#zip) command and runs it through the `execute()` function of [`@wpelevator/wp-release`](https://www.npmjs.com/package/@wpelevator/wp-release), so the action and the CLI always behave the same. The action runs `dist/index.js`, a single file bundled with esbuild that includes `wp-release` and all other dependencies, so nothing is installed from npm when the action runs. The tooling version is fixed by the action ref you pin.
