@@ -32,7 +32,7 @@ jobs:
             ${{ steps.zip.outputs.checksums-path }}
 ```
 
-Pass `zip-path` to [`wp-release-deploy-svn`](../wp-release-deploy-svn) as `from-zip` to deploy to WordPress.org exactly the files of the release asset, and to [`wp-release-sign`](../wp-release-sign) to sign it.
+Pass `zip-path` to [`wp-release-deploy-svn`](https://github.com/wpelevator/wp-release-deploy-svn) as `from-zip` to deploy to WordPress.org exactly the files of the release asset, and to [`wp-release-sign`](https://github.com/wpelevator/wp-release-sign) to sign it.
 
 ## Inputs
 
@@ -46,10 +46,10 @@ Pass `zip-path` to [`wp-release-deploy-svn`](../wp-release-deploy-svn) as `from-
 | `distignore` | `.distignore` in `source-dir` when present | Path to the ignore file, or `false` to not read one. |
 | `exclude` | | Extra gitignore-style patterns separated by commas or new lines, like `build/,assets/*,images/**/*`. They're applied after the ignore file, so a `!` pattern can re-include a file. |
 | `root-folder` | `slug` | Folder inside the ZIP, or `false` to put the files at the ZIP root. |
-| `checksums` | `false` | Also write the [checksums manifest](../wp-release-checksums) of the archived files next to the ZIP, with `.checksums.json` instead of `.zip`. |
+| `checksums` | `false` | Also write the [checksums manifest](https://github.com/wpelevator/wp-release-checksums) of the archived files next to the ZIP, with `.checksums.json` instead of `.zip`. |
 | `force` | `false` | Overwrite existing output files. |
 
-A ZIP or manifest written inside `source-dir`, and its `.sig`, is never archived. The `checksums` input is for manifests that you publish next to the ZIP. To ship the manifest inside the plugin, write it into `source-dir` with [`wp-release-checksums`](../wp-release-checksums#manifest-inside-the-plugin) before zipping and leave `checksums` off, since it would write a second manifest that lists the first.
+A ZIP or manifest written inside `source-dir`, and its `.sig`, is never archived. The `checksums` input is for manifests that you publish next to the ZIP. To ship the manifest inside the plugin, write it into `source-dir` with [`wp-release-checksums`](https://github.com/wpelevator/wp-release-checksums#manifest-inside-the-plugin) before zipping and leave `checksums` off, since it would write a second manifest that lists the first.
 
 ## Outputs
 
@@ -68,7 +68,7 @@ npm install --save-dev @wpelevator/wp-release
 npx wp-release zip dist --checksums
 ```
 
-The inputs map to the flags of [`wp-release zip`](../../js/wp-release#zip): `source-dir` is the first argument, `filename-format`, `output`, `distignore`, `exclude`, `checksums` and `force` keep their names, `root-folder: false` is `--no-root-folder` and `distignore: false` is `--no-distignore`. Add `--json` to read the paths of the ZIP and the manifest from the output. The CLI needs Node.js 22.12 or later, and has no other dependencies on the runner. Run `npx wp-release zip --help` for all options.
+The inputs map to the flags of [`wp-release zip`](https://www.npmjs.com/package/@wpelevator/wp-release#zip): `source-dir` is the first argument, `filename-format`, `output`, `distignore`, `exclude`, `checksums` and `force` keep their names, `root-folder: false` is `--no-root-folder` and `distignore: false` is `--no-distignore`. Add `--json` to read the paths of the ZIP and the manifest from the output. The CLI needs Node.js 22.12 or later, and has no other dependencies on the runner. Run `npx wp-release zip --help` for all options.
 
 ## How it works
 
