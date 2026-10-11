@@ -20,7 +20,7 @@ jobs:
       - run: npm ci && npm run build
 
       - id: zip
-        uses: wpelevator/wp-release-zip@0.1.0
+        uses: wpelevator/wp-release-zip@0.2.0
         with:
           source-dir: dist
           checksums: true
@@ -58,6 +58,10 @@ A ZIP or manifest written inside `source-dir`, and its `.sig`, is never archived
 | `zip-path` | Absolute path of the ZIP. |
 | `checksums-path` | Absolute path of the checksums manifest, empty unless `checksums` is `true`. |
 | `files` | Number of archived files. |
+
+## Job summary
+
+Each run adds a section to the job summary of the run with the ZIP, its number of files and the checksums manifest, when `checksums` is `true`. A failed run adds its error instead, and the run fails. The paths are relative to the workspace.
 
 ## Without the action
 
