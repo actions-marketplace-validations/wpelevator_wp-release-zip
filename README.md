@@ -6,7 +6,7 @@ GitHub Action that creates the release ZIP of a WordPress plugin or theme using 
 
 **Status:** first release (0.x). Boolean inputs must be `true` or `false`; anything else fails the run.
 
-The ZIP has a `{slug}/` root folder, which WordPress.org, plugin updates and WordPress Playground require, and leaves out everything that `.distignore` lists. It's reproducible: entries are sorted and use a fixed timestamp and file mode, so the same files always give the same ZIP. It needs no `zip` or `rsync` and works on any runner.
+The ZIP has a `{slug}/` root folder, which WordPress.org, plugin updates and WordPress Playground require, and leaves out everything that `.distignore` lists. The optional `exclude-gitattributes: true` input also honors Git `export-ignore` attributes, including nested `.gitattributes` files. It's reproducible: entries are sorted and use a fixed timestamp and file mode, so the same files always give the same ZIP. It needs no `zip` or `rsync` and works on any runner.
 
 ## Usage
 
@@ -45,6 +45,7 @@ Pass `zip-path` to [`wp-release-deploy-svn`](https://github.com/wpelevator/wp-re
 | `output` | the filename in the repository root | Path of the ZIP. |
 | `distignore` | `.distignore` in `source-dir` when present | Path to the ignore file, or `false` to not read one. |
 | `exclude` | | Extra gitignore-style patterns separated by commas or new lines, like `build/,assets/*,images/**/*`. They're applied after the ignore file, so a `!` pattern can re-include a file. |
+| `exclude-gitattributes` | `false` | Also exclude paths marked `export-ignore` by Git attributes. Requires `source-dir` to be inside a Git repository. |
 | `root-folder` | `slug` | Folder inside the ZIP, or `false` to put the files at the ZIP root. |
 | `checksums` | `false` | Also write the [checksums manifest](https://github.com/wpelevator/wp-release-checksums) of the archived files next to the ZIP, with `.checksums.json` instead of `.zip`. |
 | `force` | `false` | Overwrite existing output files. |
@@ -72,7 +73,7 @@ npm install --save-dev @wpelevator/wp-release
 npx wp-release zip dist --checksums
 ```
 
-The inputs map to the flags of [`wp-release zip`](https://www.npmjs.com/package/@wpelevator/wp-release#zip): `source-dir` is the first argument, `filename-format`, `output`, `distignore`, `exclude`, `checksums` and `force` keep their names, `root-folder: false` is `--no-root-folder` and `distignore: false` is `--no-distignore`. Add `--json` to read the paths of the ZIP and the manifest from the output. The CLI needs Node.js 22.12 or later, and has no other dependencies on the runner. Run `npx wp-release zip --help` for all options.
+The inputs map to the flags of [`wp-release zip`](https://www.npmjs.com/package/@wpelevator/wp-release#zip): `source-dir` is the first argument, `filename-format`, `output`, `distignore`, `exclude`, `exclude-gitattributes`, `checksums` and `force` keep their names, `root-folder: false` is `--no-root-folder` and `distignore: false` is `--no-distignore`. Add `--json` to read the paths of the ZIP and the manifest from the output. The CLI needs Node.js 22.12 or later, and has no other dependencies on the runner. Run `npx wp-release zip --help` for all options.
 
 ## How it works
 
@@ -80,7 +81,7 @@ The inputs map to the flags of [`wp-release zip`](https://www.npmjs.com/package/
 
 ## Development
 
-The source is TypeScript in `src/`. `dist/` is git-ignored in the monorepo. `npm run build` bundles the published `wp-release` version declared by this action; update that dependency after the new `wp-release` version is published. The split-push workflow commits the bundle to the action's release repository. `npm test` runs the input mapping tests with Node.js type stripping, and `npm run lint` runs ESLint and a `tsc` type check.
+The source is TypeScript in `src/`. `dist/` is git-ignored in the monorepo. `npm run build` bundles the pinned published `@wpelevator/wp-release` dependency (`0.9.0`); update that dependency and the lockfile when adopting a later release. The split-push workflow commits the bundle to the action's release repository. `npm test` runs the input mapping tests with Node.js type stripping, and `npm run lint` runs ESLint and a `tsc` type check.
 
 ```bash
 npm run build --workspace @wpelevator/wp-release-zip-action
