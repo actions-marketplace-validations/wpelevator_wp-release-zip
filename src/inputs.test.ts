@@ -21,6 +21,7 @@ test( 'maps inputs to wp-release zip flags', () => {
 				'INPUT_FILENAME-FORMAT': '{slug}',
 				INPUT_OUTPUT: 'build/my-plugin.zip',
 				INPUT_EXCLUDE: 'build/,tests/',
+				'INPUT_EXCLUDE-GITATTRIBUTES': 'true',
 				INPUT_CHECKSUMS: 'true',
 				INPUT_FORCE: 'false',
 			},
@@ -39,6 +40,7 @@ test( 'maps inputs to wp-release zip flags', () => {
 			'build/my-plugin.zip',
 			'--exclude',
 			'build/,tests/',
+			'--exclude-gitattributes',
 			'--checksums',
 		],
 		'Each set input should map to its CLI flag, and a false boolean to none.'
