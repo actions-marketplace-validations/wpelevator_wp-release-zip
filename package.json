@@ -1,13 +1,13 @@
 {
 	"private": true,
 	"name": "@wpelevator/wp-release-zip-action",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"description": "GitHub Action: create a ZIP of a WordPress plugin or theme with a {slug}/ root folder, respecting .distignore.",
 	"license": "MIT",
 	"type": "module",
 	"dependencies": {
 		"@actions/core": "^3.0.1",
-		"@wpelevator/wp-release": "0.10.0"
+		"@wpelevator/wp-release": "0.11.0"
 	},
 	"devDependencies": {
 		"@types/node": "^22.20.5",
