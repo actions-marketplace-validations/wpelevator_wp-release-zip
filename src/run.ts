@@ -5,20 +5,24 @@ import {
 	execute,
 	logError,
 } from '@wpelevator/wp-release';
-import { getZipArgs } from './inputs.ts';
+import { getZipArgs, exportSigningKey } from './inputs.ts';
 
 const logger = new Logger( { writer: new GitHubActionsWriter() } );
 
 try {
+	exportSigningKey();
+
 	const { result } = await execute( 'zip', getZipArgs(), {
 		cwd: process.env.GITHUB_WORKSPACE || process.cwd(),
 		logger,
 	} );
-	const { zipPath, checksumsPath, files } = result;
+	const { zipPath, checksumsPath, files, signatures, publicKey } = result;
 
 	setOutput( 'zip-path', zipPath );
 	setOutput( 'checksums-path', checksumsPath ?? '' );
 	setOutput( 'files', files );
+	setOutput( 'signatures', signatures?.join( '\n' ) ?? '' );
+	setOutput( 'public-key', publicKey ?? '' );
 } catch ( error ) {
 	logError( logger, error, 'WP Release Zip' );
 	process.exitCode = 1;

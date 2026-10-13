@@ -12,6 +12,9 @@ inputs:
   package:
     description: 'Package of wp-release.config.js, by identifier or path under the configured root, like plugins/my-plugin, to zip its directory with the files config of its package group, the same files as its deploys, instead of source-dir and the file selection inputs.'
     default: ''
+  config:
+    description: 'Path to a JavaScript release config file for package. Defaults to wp-release.config.js, .mjs or .cjs in the repository root.'
+    default: ''
   slug:
     description: 'Plugin or theme slug.'
     default: ${{ github.event.repository.name }}
@@ -39,8 +42,17 @@ inputs:
   checksums:
     description: 'Also write the checksums manifest of the archived files next to the ZIP.'
     default: 'false'
+  sign:
+    description: 'Also sign the ZIP and the optional checksums manifest, writing a WordPress .sig next to each.'
+    default: 'false'
+  sign-format:
+    description: 'Signature formats to write, comma-separated: wordpress, minisign, ssh. Defaults to wordpress; implies sign.'
+    default: ''
+  signing-key:
+    description: 'Base64 Ed25519 32-byte seed or 64-byte libsodium secret key. Pass it from a secret. Defaults to the WP_RELEASE_SIGNING_KEY environment variable.'
+    default: ''
   force:
-    description: 'Overwrite existing output files.'
+    description: 'Overwrite existing ZIP, manifest and signature files.'
     default: 'false'
 
 outputs:
@@ -50,6 +62,10 @@ outputs:
     description: 'Absolute path of the checksums manifest, empty unless checksums is true.'
   files:
     description: 'Number of archived files.'
+  signatures:
+    description: 'Absolute paths of the signature files, one per line, empty unless signing is enabled.'
+  public-key:
+    description: 'Base64 public key of the signing key, empty unless signing is enabled.'
 
 runs:
   using: 'node24'
