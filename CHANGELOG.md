@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0 (2026-10-13)
+
+- Add the `package` input to zip a package of `wp-release.config.js` with the `files` config of its package group, the same files that its deploys ship. ([`f8b330e`](https://github.com/wpelevator/basement/commit/f8b330e4d5c0a7c8dce8fd390d68f033121e4cf3))
+- Bundle wp-release 0.14.0.
+
 ## 0.3.4 (2026-10-12)
 
 - Bundle wp-release 0.13.0.
