@@ -28,10 +28,10 @@ test( 'maps inputs to wp-release zip flags', () => {
 			getZipArgs
 		),
 		[
-			'--source-dir',
-			'dist',
 			'--slug',
 			'my-plugin',
+			'--source-dir',
+			'dist',
 			'--version',
 			'1.2.0',
 			'--filename-format',
@@ -71,5 +71,31 @@ test( 'rejects a boolean input that is not true or false', () => {
 		() => withEnv( { INPUT_CHECKSUMS: 'ture' }, getZipArgs ),
 		/Input does not meet YAML 1.2/,
 		'A typo should fail instead of silently turning the option off.'
+	);
+} );
+
+test( 'passes a configured package instead of the default slug', () => {
+	assert.deepEqual(
+		withEnv(
+			{
+				INPUT_PACKAGE: 'plugins/my-plugin',
+				INPUT_SLUG: 'my-repository',
+				INPUT_CHECKSUMS: 'true',
+			},
+			getZipArgs
+		),
+		[ '--package', 'plugins/my-plugin', '--checksums' ],
+		'The directory of the configured package should set the slug instead of the repository name default.'
+	);
+	assert.deepEqual(
+		withEnv(
+			{
+				INPUT_PACKAGE: 'plugins/my-plugin',
+				INPUT_EXCLUDE: 'tests/',
+			},
+			getZipArgs
+		),
+		[ '--package', 'plugins/my-plugin', '--exclude', 'tests/' ],
+		'Other inputs that the config sets should still be passed, so that wp-release rejects them instead of ignoring them.'
 	);
 } );

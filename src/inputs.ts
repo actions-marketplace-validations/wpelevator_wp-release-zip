@@ -38,16 +38,24 @@ function addBoolean( args: string[], flag: string, name: string ): void {
 }
 
 /**
- * Add the source directory and the file selection flags, which zip and
- * checksums take the same way.
+ * Add the configured package or the slug, the source directory and the file
+ * selection flags. A configured package defaults the slug to its directory
+ * name, so the slug input, which defaults to the repository name, is left
+ * out, while wp-release rejects the other inputs that the config sets.
  *
  * @param args Arguments to add to.
  */
 function addSelection( args: string[] ): void {
+	const configured = input( 'package' );
 	const distignore = input( 'distignore' );
 
+	if ( configured ) {
+		args.push( '--package', configured );
+	} else {
+		addValue( args, '--slug', input( 'slug' ) );
+	}
+
 	addValue( args, '--source-dir', input( 'source-dir' ) );
-	addValue( args, '--slug', input( 'slug' ) );
 	addValue( args, '--version', input( 'version' ) );
 	addValue( args, '--filename-format', input( 'filename-format' ) );
 	addValue( args, '--output', input( 'output' ) );

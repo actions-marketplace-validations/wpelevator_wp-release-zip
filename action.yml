@@ -9,6 +9,9 @@ inputs:
   source-dir:
     description: 'Directory to archive. Defaults to the repository root.'
     default: ''
+  package:
+    description: 'Package of wp-release.config.js, by identifier or path under the configured root, like plugins/my-plugin, to zip its directory with the files config of its package group, the same files as its deploys, instead of source-dir and the file selection inputs.'
+    default: ''
   slug:
     description: 'Plugin or theme slug.'
     default: ${{ github.event.repository.name }}
