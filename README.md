@@ -12,6 +12,8 @@ Use `true` or `false` for boolean inputs; the action validates these values befo
 
 These actions require a runner with the Node.js 24 action runtime. Keep self-hosted runners updated before using them.
 
+The signed-release example below requires the unreleased `sign-checksums` input and uses `@main`; pin it to the exact release tag once published. Other examples retain the latest published tag.
+
 Pin `uses:` to the latest released version from the [releases page](https://github.com/wpelevator/wp-release-zip/releases). Upgrades are intentionally manual: floating major or minor tags are not published.
 
 ```yaml
@@ -26,11 +28,11 @@ jobs:
       - run: npm ci && npm run build
 
       - id: zip
-        uses: wpelevator/wp-release-zip@0.4.0
+        uses: wpelevator/wp-release-zip@main
         with:
           source-dir: dist
-          checksums: true
           sign: true
+          sign-checksums: true
           signing-key: ${{ secrets.WP_RELEASE_SIGNING_KEY }}
 
       - uses: softprops/action-gh-release@v3
@@ -45,14 +47,14 @@ In a repository with a `wp-release.config.js`, zip a package with the `files` co
 
 ```yaml
       - id: zip
-        uses: wpelevator/wp-release-zip@0.4.0
+        uses: wpelevator/wp-release-zip@0.5.0
         with:
           package: plugins/my-plugin
           # config: release/custom.mjs # Optional custom release config.
           checksums: true
 ```
 
-Set `sign: true` to sign the ZIP and the optional checksums manifest in the same step. `sign-format: wordpress,minisign,ssh` writes all three formats and implies signing even without `sign: true`. The `signing-key` input overrides `WP_RELEASE_SIGNING_KEY` and is masked in the logs. The key, formats and existing signature destinations are validated before the ZIP or manifest is written.
+Set `sign: true` to sign only the ZIP. Set `sign-checksums: true` to generate and sign the manifest; it implies `checksums: true` and does not sign the ZIP. Use both to sign both artifacts. `sign-format: wordpress,minisign,ssh` selects formats for requested signatures and requires at least one signing input; it does not enable signing. The `signing-key` input overrides `WP_RELEASE_SIGNING_KEY` and is masked in the logs. The key, formats and existing signature destinations are validated before the ZIP or manifest is written. These explicit targets replace the former behavior where `sign` also signed a manifest and `sign-format` implied signing.
 
 Pass `zip-path` to [`wp-release-deploy-svn`](https://github.com/wpelevator/wp-release-deploy-svn) as `from-zip` to deploy to WordPress.org exactly the files of the release asset, or use [`wp-release-sign`](https://github.com/wpelevator/wp-release-sign) to sign files separately.
 
@@ -74,8 +76,9 @@ The action itself needs only `contents: read` for checkout. This example grants 
 | `exclude-gitattributes` | `false` | Also exclude paths marked `export-ignore` by Git attributes. Requires `source-dir` to be inside a Git repository. |
 | `root-folder` | `slug` | Folder inside the ZIP, or `false` to put the files at the ZIP root. |
 | `checksums` | `false` | Also write the [checksums manifest](https://github.com/wpelevator/wp-release-checksums) of the archived files next to the ZIP, with `.checksums.json` instead of `.zip`. |
-| `sign` | `false` | Sign the ZIP and the optional checksums manifest, writing a WordPress `.sig` next to each. |
-| `sign-format` | `wordpress` | Comma-separated signature formats: `wordpress` (`.sig`), `minisign` (`.minisig`), `ssh` (`.sshsig`). Implies signing. |
+| `sign` | `false` | Sign only the ZIP, writing a WordPress `.sig` next to it. |
+| `sign-checksums` | `false` | Generate and sign the manifest; implies `checksums`. |
+| `sign-format` | `wordpress` | Comma-separated signature formats: `wordpress` (`.sig`), `minisign` (`.minisig`), `ssh` (`.sshsig`). Requires `sign` or `sign-checksums`; does not enable signing. |
 | `signing-key` | `WP_RELEASE_SIGNING_KEY` env var | Base64 32-byte Ed25519 seed or 64-byte libsodium secret key. Pass it from a secret. Setting the key alone does not enable signing. |
 | `force` | `false` | Overwrite existing ZIP, manifest and signature files. |
 
@@ -93,7 +96,7 @@ A ZIP or manifest written inside `source-dir`, and their `.sig`, `.minisig` and 
 
 ## Job summary
 
-Each run adds a section to the job summary of the run with the ZIP, its number of files and the checksums manifest, when `checksums` is `true`. Signing also adds the signature files and the public key in each selected format. A failed run adds its error instead, and the run fails. The paths are relative to the workspace.
+Each run adds a section to the job summary of the run with the ZIP, its number of files and the checksums manifest, when `checksums` or `sign-checksums` is `true`. Signing also adds the signature files and the public key in each selected format. A failed run adds its error instead, and the run fails. The paths are relative to the workspace.
 
 ## Without the action
 
@@ -101,10 +104,10 @@ When you can't use a GitHub Action, such as on another CI system or in a local r
 
 ```bash
 npm install --save-dev @wpelevator/wp-release
-npx wp-release zip dist --checksums --sign
+npx wp-release zip dist --sign --sign-checksums
 ```
 
-The inputs map to the flags of [`wp-release zip`](https://www.npmjs.com/package/@wpelevator/wp-release#zip): `source-dir` is the first argument, `package`, `config`, `filename-format`, `output`, `distignore`, `exclude`, `exclude-gitattributes`, `checksums`, `sign`, `sign-format` and `force` keep their names, `root-folder: false` is `--no-root-folder` and `distignore: false` is `--no-distignore`. Add `--json` to read the paths of the ZIP and the manifest from the output. The CLI needs Node.js 22.12 or later, and has no other dependencies on the runner. Run `npx wp-release zip --help` for all options.
+The inputs map to the flags of [`wp-release zip`](https://www.npmjs.com/package/@wpelevator/wp-release#zip): `source-dir` is the first argument, `package`, `config`, `filename-format`, `output`, `distignore`, `exclude`, `exclude-gitattributes`, `checksums`, `sign`, `sign-checksums`, `sign-format` and `force` keep their names, `root-folder: false` is `--no-root-folder` and `distignore: false` is `--no-distignore`. Add `--json` to read the paths of the ZIP and the manifest from the output. The CLI needs Node.js 22.12 or later, and has no other dependencies on the runner. Run `npx wp-release zip --help` for all options.
 
 ## How it works
 

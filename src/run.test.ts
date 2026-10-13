@@ -110,7 +110,10 @@ test( 'unsigned ZIPs expose empty signing outputs', ( t ) => {
 
 test( 'signs the ZIP and manifest with the default format', async ( t ) => {
 	const { output, summary, zipPath, checksumsPath, keys, run } = fixture( t );
-	const result = run( { INPUT_SIGN: 'true', INPUT_CHECKSUMS: 'true' } );
+	const result = run( {
+		INPUT_SIGN: 'true',
+		'INPUT_SIGN-CHECKSUMS': 'true',
+	} );
 
 	assert.equal( result.status, 0, result.stdout + result.stderr );
 	assert.equal(
@@ -155,9 +158,10 @@ test( 'signs the ZIP and manifest with the default format', async ( t ) => {
 	);
 } );
 
-test( 'formats imply signing and accept a key from the environment', async ( t ) => {
+test( 'explicit ZIP signing selects formats and accepts a key from the environment', async ( t ) => {
 	const { output, zipPath, keys, run } = fixture( t );
 	const result = run( {
+		INPUT_SIGN: 'true',
 		'INPUT_SIGN-FORMAT': 'minisign,ssh',
 		'INPUT_SIGNING-KEY': '',
 		WP_RELEASE_SIGNING_KEY: keys.privateKey,
@@ -167,7 +171,7 @@ test( 'formats imply signing and accept a key from the environment', async ( t )
 	assert.equal(
 		readOutput( output, 'signatures' ),
 		`${ zipPath }.minisig\n${ zipPath }.sshsig`,
-		'The selected formats should imply signing without writing a WordPress signature.'
+		'The selected formats should sign only the requested ZIP without writing a WordPress signature.'
 	);
 	const formats: SignatureFormat[] = [ 'minisign', 'ssh' ];
 
@@ -198,6 +202,7 @@ invalidInputs.forEach( ( { name, inputs } ) => {
 		const { zipPath, checksumsPath, run } = fixture( t );
 		const result = run( {
 			INPUT_SIGN: 'true',
+			'INPUT_SIGN-CHECKSUMS': 'true',
 			INPUT_CHECKSUMS: 'true',
 			...inputs,
 		} );
@@ -223,7 +228,10 @@ invalidInputs.forEach( ( { name, inputs } ) => {
 test( 'protects existing signatures unless force is set', async ( t ) => {
 	const { zipPath, checksumsPath, keys, run } = fixture( t );
 	writeFileSync( `${ checksumsPath }.sig`, 'existing' );
-	const rejected = run( { INPUT_SIGN: 'true', INPUT_CHECKSUMS: 'true' } );
+	const rejected = run( {
+		INPUT_SIGN: 'true',
+		'INPUT_SIGN-CHECKSUMS': 'true',
+	} );
 
 	assert.equal(
 		rejected.status,
@@ -247,6 +255,7 @@ test( 'protects existing signatures unless force is set', async ( t ) => {
 	);
 	const forced = run( {
 		INPUT_SIGN: 'true',
+		'INPUT_SIGN-CHECKSUMS': 'true',
 		INPUT_CHECKSUMS: 'true',
 		INPUT_FORCE: 'true',
 	} );
@@ -260,4 +269,32 @@ test( 'protects existing signatures unless force is set', async ( t ) => {
 		),
 		'Force should replace the existing signature with a valid signature.'
 	);
+} );
+
+test( 'sign-checksums signs only the manifest and implies checksum generation', async ( t ) => {
+	const { output, zipPath, checksumsPath, keys, run } = fixture( t );
+	const result = run( { 'INPUT_SIGN-CHECKSUMS': 'true' } );
+	assert.equal( result.status, 0, result.stdout + result.stderr );
+	assert.equal(
+		readOutput( output, 'signatures' ),
+		`${ checksumsPath }.sig`
+	);
+	assert.equal( readOutput( output, 'checksums-path' ), checksumsPath );
+	assert.equal( existsSync( `${ zipPath }.sig` ), false );
+	assert.equal(
+		await verifyFileSignature(
+			checksumsPath,
+			`${ checksumsPath }.sig`,
+			parsePublicKey( keys.publicKey )
+		),
+		true
+	);
+} );
+
+test( 'sign-format alone is rejected without generating artifacts', ( t ) => {
+	const { zipPath, checksumsPath, run } = fixture( t );
+	const result = run( { 'INPUT_SIGN-FORMAT': 'wordpress' } );
+	assert.equal( result.status, 1 );
+	assert.equal( existsSync( zipPath ), false );
+	assert.equal( existsSync( checksumsPath ), false );
 } );

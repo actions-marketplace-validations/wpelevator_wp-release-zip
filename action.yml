@@ -43,10 +43,13 @@ inputs:
     description: 'Also write the checksums manifest of the archived files next to the ZIP.'
     default: 'false'
   sign:
-    description: 'Also sign the ZIP and the optional checksums manifest, writing a WordPress .sig next to each.'
+    description: 'Sign only the ZIP, writing a WordPress .sig next to it.'
+    default: 'false'
+  sign-checksums:
+    description: 'Generate and sign the checksums manifest only. Implies checksums.'
     default: 'false'
   sign-format:
-    description: 'Signature formats to write, comma-separated: wordpress, minisign, ssh. Defaults to wordpress; implies sign.'
+    description: 'Signature formats to write, comma-separated: wordpress, minisign, ssh. Defaults to wordpress; requires sign or sign-checksums.'
     default: ''
   signing-key:
     description: 'Base64 Ed25519 32-byte seed or 64-byte libsodium secret key. Pass it from a secret. Defaults to the WP_RELEASE_SIGNING_KEY environment variable.'
@@ -59,7 +62,7 @@ outputs:
   zip-path:
     description: 'Absolute path of the ZIP.'
   checksums-path:
-    description: 'Absolute path of the checksums manifest, empty unless checksums is true.'
+    description: 'Absolute path of the checksums manifest, empty unless checksums or sign-checksums is true.'
   files:
     description: 'Number of archived files.'
   signatures:
