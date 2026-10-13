@@ -10,19 +10,23 @@ The ZIP has a `{slug}/` root folder, which WordPress.org, plugin updates and Wor
 
 ## Usage
 
-The signing inputs and `config` input below are available on `main` until the next action release; pin the released version once it is available.
+These actions require a runner with the Node.js 24 action runtime. Keep self-hosted runners updated before using them.
+
+Pin `uses:` to the latest released version from the [releases page](https://github.com/wpelevator/wp-release-zip/releases). Upgrades are intentionally manual: floating major or minor tags are not published.
 
 ```yaml
 jobs:
   release:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
 
       - run: npm ci && npm run build
 
       - id: zip
-        uses: wpelevator/wp-release-zip@main
+        uses: wpelevator/wp-release-zip@0.4.0
         with:
           source-dir: dist
           checksums: true
@@ -44,13 +48,15 @@ In a repository with a `wp-release.config.js`, zip a package with the `files` co
         uses: wpelevator/wp-release-zip@0.4.0
         with:
           package: plugins/my-plugin
-          # config: release/custom.mjs # Optional; requires the action on main until its next release.
+          # config: release/custom.mjs # Optional custom release config.
           checksums: true
 ```
 
 Set `sign: true` to sign the ZIP and the optional checksums manifest in the same step. `sign-format: wordpress,minisign,ssh` writes all three formats and implies signing even without `sign: true`. The `signing-key` input overrides `WP_RELEASE_SIGNING_KEY` and is masked in the logs. The key, formats and existing signature destinations are validated before the ZIP or manifest is written.
 
 Pass `zip-path` to [`wp-release-deploy-svn`](https://github.com/wpelevator/wp-release-deploy-svn) as `from-zip` to deploy to WordPress.org exactly the files of the release asset, or use [`wp-release-sign`](https://github.com/wpelevator/wp-release-sign) to sign files separately.
+
+The action itself needs only `contents: read` for checkout. This example grants `contents: write` because `softprops/action-gh-release` uploads assets to a GitHub release; jobs that only create ZIPs should use `contents: read`.
 
 ## Inputs
 
