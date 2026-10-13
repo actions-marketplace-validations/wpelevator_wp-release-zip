@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 (2026-10-13)
+
+- Add ZIP signing inputs and signature outputs, expose WordPress, minisign and SSH formats in the sign action, and update action documentation to match wp-release.
+  
+  Support configured SVN deployment with release-ref, package, list, config and tag-format inputs, preserve single-plugin deployment outputs, and expose configured plans and outcomes as JSON. Add the ZIP config input. Run the SVN action through the shared command with an injected runner that installs SVN only when needed. ([`ff25f51`](https://github.com/wpelevator/basement/commit/ff25f5188bcbfa03f98e8ce4dadf3324b79c1b84))
+- Bundle wp-release 0.15.0.
+
 ## 0.4.0 (2026-10-13)
 
 - Add the `package` input to zip a package of `wp-release.config.js` with the `files` config of its package group, the same files that its deploys ship. ([`f8b330e`](https://github.com/wpelevator/basement/commit/f8b330e4d5c0a7c8dce8fd390d68f033121e4cf3))
