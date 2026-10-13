@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getZipArgs } from './inputs.ts';
+import { SIGNING_KEY_ENV } from '@wpelevator/wp-release';
+import { getZipArgs, exportSigningKey } from './inputs.ts';
 import { withEnv } from './test-env.ts';
 
 test( 'passes nothing for empty inputs', () => {
@@ -72,6 +73,55 @@ test( 'rejects a boolean input that is not true or false', () => {
 		/Input does not meet YAML 1.2/,
 		'A typo should fail instead of silently turning the option off.'
 	);
+	assert.throws(
+		() => withEnv( { INPUT_SIGN: 'ture' }, getZipArgs ),
+		/Input does not meet YAML 1.2/,
+		'A typo in sign should fail instead of silently disabling signing.'
+	);
+} );
+
+test( 'maps signing inputs to flags without putting the key in arguments', () => {
+	assert.deepEqual(
+		withEnv(
+			{
+				INPUT_SIGN: 'true',
+				'INPUT_SIGN-FORMAT': 'wordpress,minisign,ssh',
+				'INPUT_SIGNING-KEY': 'secret',
+				INPUT_FORCE: 'true',
+			},
+			getZipArgs
+		),
+		[ '--sign', '--sign-format', 'wordpress,minisign,ssh', '--force' ],
+		'Signing should use the CLI flags and keep the key out of the process arguments.'
+	);
+	assert.deepEqual(
+		withEnv(
+			{ INPUT_SIGN: 'false', 'INPUT_SIGN-FORMAT': 'ssh' },
+			getZipArgs
+		),
+		[ '--sign-format', 'ssh' ],
+		'A format should reach wp-release and imply signing even without sign: true.'
+	);
+} );
+
+test( 'exports the signing input or preserves the environment key', () => {
+	[ '', 'from-input' ].forEach( ( input ) => {
+		assert.equal(
+			withEnv(
+				{
+					[ SIGNING_KEY_ENV ]: 'from-env',
+					'INPUT_SIGNING-KEY': input,
+				},
+				() => {
+					exportSigningKey();
+
+					return process.env[ SIGNING_KEY_ENV ];
+				}
+			),
+			input || 'from-env',
+			'The input should override the environment key only when it is set.'
+		);
+	} );
 } );
 
 test( 'passes a configured package instead of the default slug', () => {
@@ -97,5 +147,19 @@ test( 'passes a configured package instead of the default slug', () => {
 		),
 		[ '--package', 'plugins/my-plugin', '--exclude', 'tests/' ],
 		'Other inputs that the config sets should still be passed, so that wp-release rejects them instead of ignoring them.'
+	);
+} );
+
+test( 'passes the config path with a configured package', () => {
+	assert.deepEqual(
+		withEnv(
+			{
+				INPUT_PACKAGE: 'plugins/my-plugin',
+				INPUT_CONFIG: 'release/custom.mjs',
+			},
+			getZipArgs
+		),
+		[ '--package', 'plugins/my-plugin', '--config', 'release/custom.mjs' ],
+		'The config input should use the global --config flag with package.'
 	);
 } );

@@ -23798,6 +23798,9 @@ var ExitCode;
   ExitCode2[ExitCode2["Success"] = 0] = "Success";
   ExitCode2[ExitCode2["Failure"] = 1] = "Failure";
 })(ExitCode || (ExitCode = {}));
+function setSecret(secret) {
+  issueCommand("add-mask", {}, secret);
+}
 function getInput(name, options2) {
   const val = process.env[`INPUT_${name.replace(/ /g, "_").toUpperCase()}`] || "";
   if (options2 && options2.required && !val) {
@@ -28078,6 +28081,16 @@ var TARGET_FLAGS = [
   "svn-url",
   "message"
 ];
+async function runDeploy2(input2, logger2, runner) {
+  const options2 = resolveDeployOptions(input2);
+  const svn = runner ? new Svn({
+    runner,
+    username: options2.svnUsername,
+    password: options2.svnPassword,
+    logger: logger2
+  }) : void 0;
+  return new SvnDeploy(options2, logger2, svn).run();
+}
 function getDeployInputFromArgs(input2) {
   const { values, positionals, cwd } = input2;
   const flag = (name) => getBoolean(values, name) || void 0;
@@ -28182,7 +28195,7 @@ Examples:
     ...packageDeployArgs,
     "dry-run": { type: "boolean" }
   },
-  async run({ values, positionals, cwd, configFile, tagFormat, logger: logger2 }) {
+  async run({ values, positionals, cwd, configFile, tagFormat, logger: logger2, svnRunner }) {
     const { ref, packages, list } = getPackageDeployArgs(values, positionals, TARGET_FLAGS);
     if (ref) {
       const deploys = await getSvnDeploys({
@@ -28193,14 +28206,13 @@ Examples:
         ...configFile ? { configFile } : {},
         ...tagFormat ? { tagFormat } : {}
       });
-      return list ? listPackageDeploys(deploys, logger2, ref) : runPackageDeploys(deploys, (input2) => new SvnDeploy(resolveDeployOptions({
+      return list ? listPackageDeploys(deploys, logger2, ref) : runPackageDeploys(deploys, (input2) => runDeploy2({
         ...input2,
         svnUsername: getString(values, "svn-username"),
         force: getBoolean(values, "force")
-      }), logger2).run(), logger2, ref);
+      }, logger2, svnRunner), logger2, ref);
     }
-    const options2 = resolveDeployOptions(getDeployInputFromArgs({ values, positionals, cwd }));
-    const result = await new SvnDeploy(options2, logger2).run();
+    const result = await runDeploy2(getDeployInputFromArgs({ values, positionals, cwd }), logger2, svnRunner);
     return { exitCode: 0, result };
   }
 };
@@ -30607,27 +30619,40 @@ function getZipArgs() {
   const args = [];
   const rootFolder = input("root-folder");
   addSelection(args);
+  addValue(args, "--config", input("config"));
   if ("false" === rootFolder) {
     args.push("--no-root-folder");
   } else {
     addValue(args, "--root-folder", rootFolder);
   }
   addBoolean(args, "--checksums", "checksums");
+  addBoolean(args, "--sign", "sign");
+  addValue(args, "--sign-format", input("sign-format"));
   addBoolean(args, "--force", "force");
   return args;
+}
+function exportSigningKey() {
+  const key = getInput("signing-key");
+  if (key) {
+    setSecret(key);
+    process.env[SIGNING_KEY_ENV] = key;
+  }
 }
 
 // src/run.ts
 var logger = new Logger({ writer: new GitHubActionsWriter() });
 try {
+  exportSigningKey();
   const { result } = await execute("zip", getZipArgs(), {
     cwd: process.env.GITHUB_WORKSPACE || process.cwd(),
     logger
   });
-  const { zipPath, checksumsPath, files } = result;
+  const { zipPath, checksumsPath, files, signatures, publicKey } = result;
   setOutput("zip-path", zipPath);
   setOutput("checksums-path", checksumsPath ?? "");
   setOutput("files", files);
+  setOutput("signatures", signatures?.join("\n") ?? "");
+  setOutput("public-key", publicKey ?? "");
 } catch (error) {
   logError(logger, error, "WP Release Zip");
   process.exitCode = 1;
