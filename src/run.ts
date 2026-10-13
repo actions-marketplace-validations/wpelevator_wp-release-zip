@@ -1,3 +1,4 @@
+import { isAbsolute } from 'node:path';
 import { setOutput } from '@actions/core';
 import {
 	GitHubActionsWriter,
@@ -21,7 +22,16 @@ try {
 	setOutput( 'zip-path', zipPath );
 	setOutput( 'checksums-path', checksumsPath ?? '' );
 	setOutput( 'files', files );
-	setOutput( 'signatures', signatures?.join( '\n' ) ?? '' );
+	setOutput( 'checksums-embedded', result.checksumsEmbedded ?? '' );
+	setOutput(
+		'signatures-embedded',
+		signatures?.filter( ( path ) => ! isAbsolute( path ) ).join( '\n' ) ??
+			''
+	);
+	setOutput(
+		'signatures',
+		signatures?.filter( isAbsolute ).join( '\n' ) ?? ''
+	);
 	setOutput( 'public-key', publicKey ?? '' );
 } catch ( error ) {
 	logError( logger, error, 'WP Release Zip' );

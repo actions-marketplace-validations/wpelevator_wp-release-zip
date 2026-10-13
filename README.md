@@ -4,15 +4,13 @@
 
 GitHub Action that creates the release ZIP of a WordPress plugin or theme using [`@wpelevator/wp-release`](https://www.npmjs.com/package/@wpelevator/wp-release). It's named after the [`wp-release zip`](https://www.npmjs.com/package/@wpelevator/wp-release#zip) command that it runs.
 
-The ZIP has a `{slug}/` root folder, which WordPress.org, plugin updates and WordPress Playground require, and leaves out everything that `.distignore` lists. The optional `exclude-gitattributes: true` input also honors Git `export-ignore` attributes, including nested `.gitattributes` files. It's reproducible: entries are sorted and use a fixed timestamp and file mode, so the same files always give the same ZIP. It needs no `zip` or `rsync` and works on any runner.
+The ZIP has a `{slug}/` root folder, which WordPress.org, plugin updates and WordPress Playground require, and leaves out everything that `.distignore` lists. The optional `exclude-gitattributes: true` input also honors Git `export-ignore` attributes, including nested `.gitattributes` files. It's reproducible: entries are sorted and use a fixed timestamp and file mode, so the same files and deterministic metadata give the same ZIP. Embedded minisign signatures include a signing timestamp, and custom codec callbacks control their own encoded bytes. It needs no `zip` or `rsync` and works on any runner.
 
 ## Usage
 
 Use `true` or `false` for boolean inputs; the action validates these values before running the command.
 
 These actions require a runner with the Node.js 24 action runtime. Keep self-hosted runners updated before using them.
-
-The signed-release example below requires the unreleased `sign-checksums` input and uses `@main`; pin it to the exact release tag once published. Other examples retain the latest published tag.
 
 Pin `uses:` to the latest released version from the [releases page](https://github.com/wpelevator/wp-release-zip/releases). Upgrades are intentionally manual: floating major or minor tags are not published.
 
@@ -28,7 +26,7 @@ jobs:
       - run: npm ci && npm run build
 
       - id: zip
-        uses: wpelevator/wp-release-zip@main
+        uses: wpelevator/wp-release-zip@0.6.0
         with:
           source-dir: dist
           sign: true
@@ -47,25 +45,43 @@ In a repository with a `wp-release.config.js`, zip a package with the `files` co
 
 ```yaml
       - id: zip
-        uses: wpelevator/wp-release-zip@0.5.0
+        uses: wpelevator/wp-release-zip@0.6.0
         with:
           package: plugins/my-plugin
           # config: release/custom.mjs # Optional custom release config.
           checksums: true
 ```
 
-Set `sign: true` to sign only the ZIP. Set `sign-checksums: true` to generate and sign the manifest; it implies `checksums: true` and does not sign the ZIP. Use both to sign both artifacts. `sign-format: wordpress,minisign,ssh` selects formats for requested signatures and requires at least one signing input; it does not enable signing. The `signing-key` input overrides `WP_RELEASE_SIGNING_KEY` and is masked in the logs. The key, formats and existing signature destinations are validated before the ZIP or manifest is written. These explicit targets replace the former behavior where `sign` also signed a manifest and `sign-format` implied signing.
+Set `sign: true` to sign only the ZIP. Set `sign-checksums: true` to generate and sign the manifest; it implies `checksums: true` and does not sign the ZIP. Use both to sign both artifacts. `sign-format: wordpress,minisign,ssh` selects formats for requested signatures and requires ZIP or manifest signing through inputs or configuration; it does not enable signing. The `signing-key` input overrides `WP_RELEASE_SIGNING_KEY` and is masked in the logs. The key, formats and existing signature destinations are validated before the ZIP or manifest is written. These explicit targets replace the former behavior where `sign` also signed a manifest and `sign-format` implied signing.
 
 Pass `zip-path` to [`wp-release-deploy-svn`](https://github.com/wpelevator/wp-release-deploy-svn) as `from-zip` to deploy to WordPress.org exactly the files of the release asset, or use [`wp-release-sign`](https://github.com/wpelevator/wp-release-sign) to sign files separately.
 
 The action itself needs only `contents: read` for checkout. This example grants `contents: write` because `softprops/action-gh-release` uploads assets to a GitHub release; jobs that only create ZIPs should use `contents: read`.
+
+### Signed manifest inside the ZIP
+
+```yaml
+      - id: zip
+        uses: wpelevator/wp-release-zip@0.6.0
+        with:
+          source-dir: dist
+          checksums-file: checksums.json
+          embed-checksums: true
+          sign-checksums: true
+          sign: true
+          signing-key: ${{ secrets.WP_RELEASE_SIGNING_KEY }}
+```
+
+Upload `zip-path` and `signatures` as release assets. `checksums-path` is empty here; `checksums-embedded` and `signatures-embedded` name entries inside the package and are not local files. Verify the archive with `npx wp-release verify --zip <zip-path> --checksums-file checksums.json --public-key "$PUBLIC_KEY"`, using a trusted key distributed outside the ZIP.
+
+For a GNU manifest, set `checksums-format: sha256sum`, `checksums-file: SHA256SUMS`, `checksums-algorithms: sha256` and `sign-format: minisign`, then verify with `--checksums-format sha256sum --signature-format minisign`. Custom codecs require a trusted JavaScript config supplied through `config`.
 
 ## Inputs
 
 | Input | Default | Description |
 |---|---|---|
 | `package` | | Package of `wp-release.config.js`, by identifier or path under the configured root like `plugins/my-plugin`, to zip its directory with the [`files` config](https://www.npmjs.com/package/@wpelevator/wp-release#deploy-configured-packages) of its package group, the same files that its deploys ship. The slug defaults to the directory name, so the `slug` input is ignored, and `source-dir` and the file selection inputs can't be combined with it. |
-| `config` | conventional config in the repository root | JavaScript release config path for `package`, passed as `--config`. |
+| `config` | conventional config in the repository root | JavaScript release config path for package selection and `integrity` settings, passed as `--config`. |
 | `source-dir` | `.` | Directory to archive. |
 | `slug` | repository name | Plugin or theme slug. |
 | `version` | `Version` header | Version for the ZIP and its filename. |
@@ -75,28 +91,34 @@ The action itself needs only `contents: read` for checkout. This example grants 
 | `exclude` | | Extra gitignore-style patterns separated by commas or new lines, like `build/,assets/*,images/**/*`. They're applied after the ignore file, so a `!` pattern can re-include a file. |
 | `exclude-gitattributes` | `false` | Also exclude paths marked `export-ignore` by Git attributes. Requires `source-dir` to be inside a Git repository. |
 | `root-folder` | `slug` | Folder inside the ZIP, or `false` to put the files at the ZIP root. |
-| `checksums` | `false` | Also write the [checksums manifest](https://github.com/wpelevator/wp-release-checksums) of the archived files next to the ZIP, with `.checksums.json` instead of `.zip`. |
+| `checksums` | `false` | Generate the [checksums manifest](https://github.com/wpelevator/wp-release-checksums) of the archived files next to the ZIP, with `.checksums.json` instead of `.zip` by default; `checksums-file`, codec selection and embedding can change its name or location. |
+| `checksums-file` | `integrity.file`, else versioned JSON filename or codec default | Relative manifest filename independent of the ZIP name; implies checksums. Resolves beside the ZIP or inside its package root when embedded. Nested paths are allowed; absolute paths and dot segments are rejected. |
+| `checksums-format` | `integrity.codec`, else `wordpress-json` | `wordpress-json` or `sha256sum`; the latter defaults to `SHA256SUMS`. |
+| `checksums-algorithms` | `integrity.algorithms`, else `md5,sha256` | Comma-separated digest fields, replacing configured fields. `sha256sum` requires SHA-256. |
+| `embed-checksums` | `integrity.embed`, else `false` | Generate the manifest inside the ZIP instead of beside it; implies checksums. Explicit `false` disables configured embedding. |
 | `sign` | `false` | Sign only the ZIP, writing a WordPress `.sig` next to it. |
-| `sign-checksums` | `false` | Generate and sign the manifest; implies `checksums`. |
-| `sign-format` | `wordpress` | Comma-separated signature formats: `wordpress` (`.sig`), `minisign` (`.minisig`), `ssh` (`.sshsig`). Requires `sign` or `sign-checksums`; does not enable signing. |
+| `sign-checksums` | `integrity.sign`, else `false` | Generate and sign the manifest; implies `checksums`. Explicit `false` disables configured manifest signing. |
+| `sign-format` | `integrity.sign.formats`, else `wordpress` | Comma-separated signature formats: `wordpress` (`.sig`), `minisign` (`.minisig`), `ssh` (`.sshsig`). Requires ZIP or manifest signing through inputs or configuration; does not enable signing. |
 | `signing-key` | `WP_RELEASE_SIGNING_KEY` env var | Base64 32-byte Ed25519 seed or 64-byte libsodium secret key. Pass it from a secret. Setting the key alone does not enable signing. |
 | `force` | `false` | Overwrite existing ZIP, manifest and signature files. |
 
-A ZIP or manifest written inside `source-dir`, and their `.sig`, `.minisig` and `.sshsig` signatures, are never archived. The `checksums` input is for manifests that you publish next to the ZIP. To ship the manifest inside the plugin, write it into `source-dir` with [`wp-release-checksums`](https://github.com/wpelevator/wp-release-checksums#manifest-inside-the-plugin) before zipping and leave `checksums` off, since it would write a second manifest that lists the first.
+A ZIP or manifest written inside `source-dir`, and their `.sig`, `.minisig` and `.sshsig` signatures, are never archived. Use `embed-checksums: true` to generate a manifest and its requested signatures inside the ZIP without changing the source directory. For a manifest also shipped through a source-directory SVN deploy or published as a separate asset, use the [separate checksum and signing steps](https://github.com/wpelevator/wp-release-checksums#manifest-inside-the-plugin).
 
 ## Outputs
 
 | Output | Description |
 |---|---|
 | `zip-path` | Absolute path of the ZIP. |
-| `checksums-path` | Absolute path of the checksums manifest, empty unless `checksums` is `true`. |
+| `checksums-path` | Absolute path of the external manifest; empty when disabled or embedded. |
 | `files` | Number of archived files. |
-| `signatures` | Absolute paths of the written signature files, one per line; empty without signing. |
+| `signatures` | Absolute paths of external signatures, one per line, suitable for asset uploads; excludes embedded signatures. |
+| `checksums-embedded` | Package-relative manifest path inside the ZIP; empty without embedding. |
+| `signatures-embedded` | Package-relative signature paths inside the ZIP, one per line; empty without embedded manifest signing. |
 | `public-key` | Base64 public key of the signing key; empty without signing. |
 
 ## Job summary
 
-Each run adds a section to the job summary of the run with the ZIP, its number of files and the checksums manifest, when `checksums` or `sign-checksums` is `true`. Signing also adds the signature files and the public key in each selected format. A failed run adds its error instead, and the run fails. The paths are relative to the workspace.
+Each run adds a section to the job summary of the run with the ZIP, its number of files and the checksums manifest, when manifest generation is enabled by inputs or integrity configuration. Embedded manifests are shown by their package-relative paths. Signing also adds the signature files and the public key in each selected format. A failed run adds its error instead, and the run fails. The paths are relative to the workspace.
 
 ## Without the action
 
@@ -107,7 +129,7 @@ npm install --save-dev @wpelevator/wp-release
 npx wp-release zip dist --sign --sign-checksums
 ```
 
-The inputs map to the flags of [`wp-release zip`](https://www.npmjs.com/package/@wpelevator/wp-release#zip): `source-dir` is the first argument, `package`, `config`, `filename-format`, `output`, `distignore`, `exclude`, `exclude-gitattributes`, `checksums`, `sign`, `sign-checksums`, `sign-format` and `force` keep their names, `root-folder: false` is `--no-root-folder` and `distignore: false` is `--no-distignore`. Add `--json` to read the paths of the ZIP and the manifest from the output. The CLI needs Node.js 22.12 or later, and has no other dependencies on the runner. Run `npx wp-release zip --help` for all options.
+The inputs map to the flags of [`wp-release zip`](https://www.npmjs.com/package/@wpelevator/wp-release#zip): `source-dir` is the first argument, `package`, `config`, `filename-format`, `output`, `distignore`, `exclude`, `exclude-gitattributes`, `checksums`, `checksums-file`, `checksums-format`, `checksums-algorithms`, `sign`, `sign-checksums`, `sign-format` and `force` keep their names, `root-folder: false` is `--no-root-folder` and `distignore: false` is `--no-distignore`. `embed-checksums` and `sign-checksums` map explicit `false` to their `--no-` flags; omitting them preserves integrity configuration. Add `--json` to read the paths of the ZIP and the manifest from the output. The CLI needs Node.js 22.12 or later, and has no other dependencies on the runner. Run `npx wp-release zip --help` for all options.
 
 ## How it works
 

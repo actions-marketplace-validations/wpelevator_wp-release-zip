@@ -23348,6 +23348,9 @@ var require_valid = __commonJS({
   }
 });
 
+// src/run.ts
+import { isAbsolute as isAbsolute5 } from "node:path";
+
 // ../../../node_modules/@actions/core/lib/command.js
 import * as os from "os";
 
@@ -31399,7 +31402,20 @@ function getZipArgs() {
   }
   addBoolean(args, "--checksums", "checksums");
   addBoolean(args, "--sign", "sign");
-  addBoolean(args, "--sign-checksums", "sign-checksums");
+  for (const name of ["embed-checksums", "sign-checksums"]) {
+    if (getInput(name)) {
+      args.push(
+        getBooleanInput(name) ? `--${name}` : `--no-${name}`
+      );
+    }
+  }
+  for (const name of [
+    "checksums-file",
+    "checksums-format",
+    "checksums-algorithms"
+  ]) {
+    addValue(args, `--${name}`, input(name));
+  }
   addValue(args, "--sign-format", input("sign-format"));
   addBoolean(args, "--force", "force");
   return args;
@@ -31424,7 +31440,15 @@ try {
   setOutput("zip-path", zipPath);
   setOutput("checksums-path", checksumsPath ?? "");
   setOutput("files", files);
-  setOutput("signatures", signatures?.join("\n") ?? "");
+  setOutput("checksums-embedded", result.checksumsEmbedded ?? "");
+  setOutput(
+    "signatures-embedded",
+    signatures?.filter((path11) => !isAbsolute5(path11)).join("\n") ?? ""
+  );
+  setOutput(
+    "signatures",
+    signatures?.filter(isAbsolute5).join("\n") ?? ""
+  );
   setOutput("public-key", publicKey ?? "");
 } catch (error) {
   logError(logger, error, "WP Release Zip");

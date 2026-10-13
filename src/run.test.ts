@@ -18,6 +18,7 @@ import {
 	getSignaturePath,
 	parsePublicKey,
 	verifyFileSignature,
+	run as runCli,
 } from '@wpelevator/wp-release';
 import type { SignatureFormat } from '@wpelevator/wp-release';
 import { withEnv } from './test-env.ts';
@@ -297,4 +298,116 @@ test( 'sign-format alone is rejected without generating artifacts', ( t ) => {
 	assert.equal( result.status, 1 );
 	assert.equal( existsSync( zipPath ), false );
 	assert.equal( existsSync( checksumsPath ), false );
+} );
+
+test( 'embeds signed GNU metadata and exposes only uploadable external signatures', async ( t ) => {
+	const { output, zipPath, keys, run } = fixture( t );
+	const result = run( {
+		'INPUT_CHECKSUMS-FILE': 'meta/SHA256SUMS',
+		'INPUT_CHECKSUMS-FORMAT': 'sha256sum',
+		'INPUT_CHECKSUMS-ALGORITHMS': 'sha256',
+		'INPUT_EMBED-CHECKSUMS': 'true',
+		'INPUT_SIGN-CHECKSUMS': 'true',
+		'INPUT_SIGN-FORMAT': 'minisign',
+		INPUT_SIGN: 'true',
+	} );
+	assert.equal( result.status, 0, result.stdout + result.stderr );
+	assert.equal(
+		readOutput( output, 'checksums-path' ),
+		'',
+		'Embedding should not expose a nonexistent external manifest.'
+	);
+	assert.equal(
+		readOutput( output, 'checksums-embedded' ),
+		'meta/SHA256SUMS',
+		'Embedded paths should be relative to the package root.'
+	);
+	assert.equal(
+		readOutput( output, 'signatures-embedded' ),
+		'meta/SHA256SUMS.minisig',
+		'Embedded signatures should be separate from assets.'
+	);
+	assert.equal(
+		readOutput( output, 'signatures' ),
+		`${ zipPath }.minisig`,
+		'Asset uploads should receive only external signatures.'
+	);
+	const verified = await runCli(
+		[
+			'verify',
+			'--zip',
+			zipPath,
+			'--checksums-file',
+			'meta/SHA256SUMS',
+			'--checksums-format',
+			'sha256sum',
+			'--public-key',
+			keys.publicKey,
+			'--signature-format',
+			'minisign',
+		],
+		{ cwd: join( zipPath, '..' ) }
+	);
+	assert.equal(
+		verified,
+		0,
+		'The generated ZIP should authenticate and match its embedded GNU manifest.'
+	);
+} );
+
+test( 'false inputs override configured embedding and manifest signing', ( t ) => {
+	const { output, zipPath, run } = fixture( t );
+	const config = join( zipPath, '..', 'release.mjs' );
+	writeFileSync(
+		config,
+		"export default { packages: [], integrity: { file: 'checksums.json', embed: true, sign: { formats: ['wordpress'] } } };"
+	);
+	const result = run( {
+		INPUT_CONFIG: config,
+		'INPUT_EMBED-CHECKSUMS': 'false',
+		'INPUT_SIGN-CHECKSUMS': 'false',
+		'INPUT_SIGNING-KEY': '',
+	} );
+	assert.equal( result.status, 0, result.stdout + result.stderr );
+	assert.equal(
+		readOutput( output, 'checksums-path' ),
+		join( zipPath, '..', 'checksums.json' ),
+		'Disabling embedding should write the configured manifest beside the ZIP.'
+	);
+	assert.equal(
+		readOutput( output, 'signatures' ),
+		'',
+		'Disabling configured signing should require no key.'
+	);
+} );
+
+test( 'omitted inputs preserve configured embedding and signing', ( t ) => {
+	const { output, zipPath, run } = fixture( t );
+	const config = join( zipPath, '..', 'release.mjs' );
+	writeFileSync(
+		config,
+		"export default { packages: [], integrity: { file: 'checksums.json', embed: true, sign: { formats: ['wordpress'] } } };"
+	);
+	const result = run( { INPUT_CONFIG: config } );
+	assert.equal( result.status, 0, result.stdout + result.stderr );
+	assert.equal(
+		readOutput( output, 'checksums-path' ),
+		'',
+		'Configured embedding should not write an external manifest.'
+	);
+	assert.equal(
+		readOutput( output, 'checksums-embedded' ),
+		'checksums.json',
+		'Omitted embedding input should preserve the configured path.'
+	);
+	assert.equal(
+		readOutput( output, 'signatures-embedded' ),
+		'checksums.json.sig',
+		'Omitted signing input should preserve configured signing.'
+	);
+	assert.equal(
+		readOutput( output, 'signatures' ),
+		'',
+		'Embedded signatures should not be exposed as uploadable files.'
+	);
 } );
