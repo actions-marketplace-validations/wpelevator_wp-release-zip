@@ -100,7 +100,7 @@ test( 'maps signing inputs to flags without putting the key in arguments', () =>
 			getZipArgs
 		),
 		[ '--sign-format', 'ssh' ],
-		'A format should reach wp-release and imply signing even without sign: true.'
+		'A format should reach wp-release without enabling a signing target.'
 	);
 } );
 
@@ -161,5 +161,18 @@ test( 'passes the config path with a configured package', () => {
 		),
 		[ '--package', 'plugins/my-plugin', '--config', 'release/custom.mjs' ],
 		'The config input should use the global --config flag with package.'
+	);
+} );
+
+test( 'selects manifest signing independently of ZIP signing', () => {
+	assert.deepEqual(
+		withEnv( { 'INPUT_SIGN-CHECKSUMS': 'true' }, getZipArgs ),
+		[ '--sign-checksums' ],
+		'Manifest signing should not enable ZIP signing.'
+	);
+	assert.throws(
+		() => withEnv( { 'INPUT_SIGN-CHECKSUMS': 'ture' }, getZipArgs ),
+		/Input does not meet YAML 1.2/,
+		'Invalid manifest signing inputs should fail.'
 	);
 } );

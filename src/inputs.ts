@@ -92,6 +92,7 @@ export function getZipArgs(): string[] {
 
 	addBoolean( args, '--checksums', 'checksums' );
 	addBoolean( args, '--sign', 'sign' );
+	addBoolean( args, '--sign-checksums', 'sign-checksums' );
 	addValue( args, '--sign-format', input( 'sign-format' ) );
 	addBoolean( args, '--force', 'force' );
 
