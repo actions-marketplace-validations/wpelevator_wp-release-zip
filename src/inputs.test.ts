@@ -176,3 +176,39 @@ test( 'selects manifest signing independently of ZIP signing', () => {
 		'Invalid manifest signing inputs should fail.'
 	);
 } );
+
+test( 'maps integrity settings and explicit configuration overrides', () => {
+	assert.deepEqual(
+		withEnv(
+			{
+				'INPUT_EMBED-CHECKSUMS': 'true',
+				'INPUT_SIGN-CHECKSUMS': 'false',
+				'INPUT_CHECKSUMS-FILE': 'meta/SHA256SUMS',
+				'INPUT_CHECKSUMS-FORMAT': 'sha256sum',
+				'INPUT_CHECKSUMS-ALGORITHMS': 'sha256',
+			},
+			getZipArgs
+		),
+		[
+			'--embed-checksums',
+			'--no-sign-checksums',
+			'--checksums-file',
+			'meta/SHA256SUMS',
+			'--checksums-format',
+			'sha256sum',
+			'--checksums-algorithms',
+			'sha256',
+		],
+		'Integrity inputs should override configuration without enabling unwanted signing.'
+	);
+	assert.deepEqual(
+		withEnv( { 'INPUT_EMBED-CHECKSUMS': 'false' }, getZipArgs ),
+		[ '--no-embed-checksums' ],
+		'Explicit false should disable configured embedding.'
+	);
+	assert.throws(
+		() => withEnv( { 'INPUT_EMBED-CHECKSUMS': 'ture' }, getZipArgs ),
+		/Input does not meet YAML 1.2/,
+		'An invalid embedding boolean should fail.'
+	);
+} );

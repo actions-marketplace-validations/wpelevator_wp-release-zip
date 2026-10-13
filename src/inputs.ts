@@ -92,7 +92,20 @@ export function getZipArgs(): string[] {
 
 	addBoolean( args, '--checksums', 'checksums' );
 	addBoolean( args, '--sign', 'sign' );
-	addBoolean( args, '--sign-checksums', 'sign-checksums' );
+	for ( const name of [ 'embed-checksums', 'sign-checksums' ] ) {
+		if ( getInput( name ) ) {
+			args.push(
+				getBooleanInput( name ) ? `--${ name }` : `--no-${ name }`
+			);
+		}
+	}
+	for ( const name of [
+		'checksums-file',
+		'checksums-format',
+		'checksums-algorithms',
+	] ) {
+		addValue( args, `--${ name }`, input( name ) );
+	}
 	addValue( args, '--sign-format', input( 'sign-format' ) );
 	addBoolean( args, '--force', 'force' );
 
