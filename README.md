@@ -4,11 +4,11 @@
 
 GitHub Action that creates the release ZIP of a WordPress plugin or theme using [`@wpelevator/wp-release`](https://www.npmjs.com/package/@wpelevator/wp-release). It's named after the [`wp-release zip`](https://www.npmjs.com/package/@wpelevator/wp-release#zip) command that it runs.
 
-**Status:** first release (0.x). Boolean inputs must be `true` or `false`; anything else fails the run.
-
 The ZIP has a `{slug}/` root folder, which WordPress.org, plugin updates and WordPress Playground require, and leaves out everything that `.distignore` lists. The optional `exclude-gitattributes: true` input also honors Git `export-ignore` attributes, including nested `.gitattributes` files. It's reproducible: entries are sorted and use a fixed timestamp and file mode, so the same files always give the same ZIP. It needs no `zip` or `rsync` and works on any runner.
 
 ## Usage
+
+Use `true` or `false` for boolean inputs; the action validates these values before running the command.
 
 These actions require a runner with the Node.js 24 action runtime. Keep self-hosted runners updated before using them.
 
