@@ -9,6 +9,12 @@ inputs:
   source-dir:
     description: 'Directory to archive. Defaults to the repository root.'
     default: ''
+  package:
+    description: 'Package of wp-release.config.js, by identifier or path under the configured root, like plugins/my-plugin, to zip its directory with the files config of its package group, the same files as its deploys, instead of source-dir and the file selection inputs.'
+    default: ''
+  config:
+    description: 'Path to a JavaScript release config file for package selection and integrity settings. Defaults to wp-release.config.js, .mjs or .cjs in the repository root.'
+    default: ''
   slug:
     description: 'Plugin or theme slug.'
     default: ${{ github.event.repository.name }}
@@ -36,17 +42,49 @@ inputs:
   checksums:
     description: 'Also write the checksums manifest of the archived files next to the ZIP.'
     default: 'false'
+  checksums-file:
+    description: 'Relative manifest filename, beside the ZIP or inside its package root with embed-checksums. Implies checksums.'
+    default: ''
+  checksums-format:
+    description: 'Manifest format: wordpress-json or sha256sum. Defaults to integrity.codec or wordpress-json.'
+    default: ''
+  checksums-algorithms:
+    description: 'Comma-separated digest fields: md5,sha256. Replaces integrity.algorithms; sha256sum requires sha256.'
+    default: ''
+  embed-checksums:
+    description: 'Embed the manifest instead of writing it beside the ZIP. Empty uses integrity.embed; false overrides it.'
+    default: ''
+  sign:
+    description: 'Sign only the ZIP, writing a WordPress .sig next to it.'
+    default: 'false'
+  sign-checksums:
+    description: 'Generate and sign the manifest only. Implies checksums. Empty uses integrity.sign; false overrides it.'
+    default: ''
+  sign-format:
+    description: 'Signature formats to write, comma-separated: wordpress, minisign, ssh. Defaults to integrity.sign.formats or wordpress; requires ZIP or manifest signing.'
+    default: ''
+  signing-key:
+    description: 'Base64 Ed25519 32-byte seed or 64-byte libsodium secret key. Pass it from a secret. Defaults to the WP_RELEASE_SIGNING_KEY environment variable.'
+    default: ''
   force:
-    description: 'Overwrite existing output files.'
+    description: 'Overwrite existing ZIP, manifest and signature files.'
     default: 'false'
 
 outputs:
   zip-path:
     description: 'Absolute path of the ZIP.'
   checksums-path:
-    description: 'Absolute path of the checksums manifest, empty unless checksums is true.'
+    description: 'Absolute path of the external manifest; empty when disabled or embedded.'
   files:
     description: 'Number of archived files.'
+  signatures:
+    description: 'Absolute paths of external signature files, one per line, suitable for asset uploads; excludes embedded signatures.'
+  checksums-embedded:
+    description: 'Package-relative manifest path inside the ZIP; empty without embedding.'
+  signatures-embedded:
+    description: 'Package-relative signature paths inside the ZIP, one per line; empty without embedded manifest signing.'
+  public-key:
+    description: 'Base64 public key of the signing key, empty unless signing is enabled.'
 
 runs:
   using: 'node24'

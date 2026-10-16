@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getZipArgs } from './inputs.ts';
+import { SIGNING_KEY_ENV } from '@wpelevator/wp-release';
+import { getZipArgs, exportSigningKey } from './inputs.ts';
 import { withEnv } from './test-env.ts';
 
 test( 'passes nothing for empty inputs', () => {
@@ -28,10 +29,10 @@ test( 'maps inputs to wp-release zip flags', () => {
 			getZipArgs
 		),
 		[
-			'--source-dir',
-			'dist',
 			'--slug',
 			'my-plugin',
+			'--source-dir',
+			'dist',
 			'--version',
 			'1.2.0',
 			'--filename-format',
@@ -71,5 +72,143 @@ test( 'rejects a boolean input that is not true or false', () => {
 		() => withEnv( { INPUT_CHECKSUMS: 'ture' }, getZipArgs ),
 		/Input does not meet YAML 1.2/,
 		'A typo should fail instead of silently turning the option off.'
+	);
+	assert.throws(
+		() => withEnv( { INPUT_SIGN: 'ture' }, getZipArgs ),
+		/Input does not meet YAML 1.2/,
+		'A typo in sign should fail instead of silently disabling signing.'
+	);
+} );
+
+test( 'maps signing inputs to flags without putting the key in arguments', () => {
+	assert.deepEqual(
+		withEnv(
+			{
+				INPUT_SIGN: 'true',
+				'INPUT_SIGN-FORMAT': 'wordpress,minisign,ssh',
+				'INPUT_SIGNING-KEY': 'secret',
+				INPUT_FORCE: 'true',
+			},
+			getZipArgs
+		),
+		[ '--sign', '--sign-format', 'wordpress,minisign,ssh', '--force' ],
+		'Signing should use the CLI flags and keep the key out of the process arguments.'
+	);
+	assert.deepEqual(
+		withEnv(
+			{ INPUT_SIGN: 'false', 'INPUT_SIGN-FORMAT': 'ssh' },
+			getZipArgs
+		),
+		[ '--sign-format', 'ssh' ],
+		'A format should reach wp-release without enabling a signing target.'
+	);
+} );
+
+test( 'exports the signing input or preserves the environment key', () => {
+	[ '', 'from-input' ].forEach( ( input ) => {
+		assert.equal(
+			withEnv(
+				{
+					[ SIGNING_KEY_ENV ]: 'from-env',
+					'INPUT_SIGNING-KEY': input,
+				},
+				() => {
+					exportSigningKey();
+
+					return process.env[ SIGNING_KEY_ENV ];
+				}
+			),
+			input || 'from-env',
+			'The input should override the environment key only when it is set.'
+		);
+	} );
+} );
+
+test( 'passes a configured package instead of the default slug', () => {
+	assert.deepEqual(
+		withEnv(
+			{
+				INPUT_PACKAGE: 'plugins/my-plugin',
+				INPUT_SLUG: 'my-repository',
+				INPUT_CHECKSUMS: 'true',
+			},
+			getZipArgs
+		),
+		[ '--package', 'plugins/my-plugin', '--checksums' ],
+		'The directory of the configured package should set the slug instead of the repository name default.'
+	);
+	assert.deepEqual(
+		withEnv(
+			{
+				INPUT_PACKAGE: 'plugins/my-plugin',
+				INPUT_EXCLUDE: 'tests/',
+			},
+			getZipArgs
+		),
+		[ '--package', 'plugins/my-plugin', '--exclude', 'tests/' ],
+		'Other inputs that the config sets should still be passed, so that wp-release rejects them instead of ignoring them.'
+	);
+} );
+
+test( 'passes the config path with a configured package', () => {
+	assert.deepEqual(
+		withEnv(
+			{
+				INPUT_PACKAGE: 'plugins/my-plugin',
+				INPUT_CONFIG: 'release/custom.mjs',
+			},
+			getZipArgs
+		),
+		[ '--package', 'plugins/my-plugin', '--config', 'release/custom.mjs' ],
+		'The config input should use the global --config flag with package.'
+	);
+} );
+
+test( 'selects manifest signing independently of ZIP signing', () => {
+	assert.deepEqual(
+		withEnv( { 'INPUT_SIGN-CHECKSUMS': 'true' }, getZipArgs ),
+		[ '--sign-checksums' ],
+		'Manifest signing should not enable ZIP signing.'
+	);
+	assert.throws(
+		() => withEnv( { 'INPUT_SIGN-CHECKSUMS': 'ture' }, getZipArgs ),
+		/Input does not meet YAML 1.2/,
+		'Invalid manifest signing inputs should fail.'
+	);
+} );
+
+test( 'maps integrity settings and explicit configuration overrides', () => {
+	assert.deepEqual(
+		withEnv(
+			{
+				'INPUT_EMBED-CHECKSUMS': 'true',
+				'INPUT_SIGN-CHECKSUMS': 'false',
+				'INPUT_CHECKSUMS-FILE': 'meta/SHA256SUMS',
+				'INPUT_CHECKSUMS-FORMAT': 'sha256sum',
+				'INPUT_CHECKSUMS-ALGORITHMS': 'sha256',
+			},
+			getZipArgs
+		),
+		[
+			'--embed-checksums',
+			'--no-sign-checksums',
+			'--checksums-file',
+			'meta/SHA256SUMS',
+			'--checksums-format',
+			'sha256sum',
+			'--checksums-algorithms',
+			'sha256',
+		],
+		'Integrity inputs should override configuration without enabling unwanted signing.'
+	);
+	assert.deepEqual(
+		withEnv( { 'INPUT_EMBED-CHECKSUMS': 'false' }, getZipArgs ),
+		[ '--no-embed-checksums' ],
+		'Explicit false should disable configured embedding.'
+	);
+	assert.throws(
+		() => withEnv( { 'INPUT_EMBED-CHECKSUMS': 'ture' }, getZipArgs ),
+		/Input does not meet YAML 1.2/,
+		'An invalid embedding boolean should fail.'
 	);
 } );

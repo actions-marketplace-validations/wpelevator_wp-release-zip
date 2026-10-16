@@ -1,4 +1,5 @@
-import { getBooleanInput, getInput } from '@actions/core';
+import { getBooleanInput, getInput, setSecret } from '@actions/core';
+import { SIGNING_KEY_ENV } from '@wpelevator/wp-release';
 
 /**
  * Read an optional string input. Empty means "not set".
@@ -38,16 +39,24 @@ function addBoolean( args: string[], flag: string, name: string ): void {
 }
 
 /**
- * Add the source directory and the file selection flags, which zip and
- * checksums take the same way.
+ * Add the configured package or the slug, the source directory and the file
+ * selection flags. A configured package defaults the slug to its directory
+ * name, so the slug input, which defaults to the repository name, is left
+ * out, while wp-release rejects the other inputs that the config sets.
  *
  * @param args Arguments to add to.
  */
 function addSelection( args: string[] ): void {
+	const configured = input( 'package' );
 	const distignore = input( 'distignore' );
 
+	if ( configured ) {
+		args.push( '--package', configured );
+	} else {
+		addValue( args, '--slug', input( 'slug' ) );
+	}
+
 	addValue( args, '--source-dir', input( 'source-dir' ) );
-	addValue( args, '--slug', input( 'slug' ) );
 	addValue( args, '--version', input( 'version' ) );
 	addValue( args, '--filename-format', input( 'filename-format' ) );
 	addValue( args, '--output', input( 'output' ) );
@@ -73,6 +82,7 @@ export function getZipArgs(): string[] {
 	const rootFolder = input( 'root-folder' );
 
 	addSelection( args );
+	addValue( args, '--config', input( 'config' ) );
 
 	if ( 'false' === rootFolder ) {
 		args.push( '--no-root-folder' );
@@ -81,7 +91,36 @@ export function getZipArgs(): string[] {
 	}
 
 	addBoolean( args, '--checksums', 'checksums' );
+	addBoolean( args, '--sign', 'sign' );
+	for ( const name of [ 'embed-checksums', 'sign-checksums' ] ) {
+		if ( getInput( name ) ) {
+			args.push(
+				getBooleanInput( name ) ? `--${ name }` : `--no-${ name }`
+			);
+		}
+	}
+	for ( const name of [
+		'checksums-file',
+		'checksums-format',
+		'checksums-algorithms',
+	] ) {
+		addValue( args, `--${ name }`, input( name ) );
+	}
+	addValue( args, '--sign-format', input( 'sign-format' ) );
 	addBoolean( args, '--force', 'force' );
 
 	return args;
+}
+
+/**
+ * Mask the signing-key input and pass it to wp-release through its environment.
+ * The input wins over a key already in the environment.
+ */
+export function exportSigningKey(): void {
+	const key = getInput( 'signing-key' );
+
+	if ( key ) {
+		setSecret( key );
+		process.env[ SIGNING_KEY_ENV ] = key;
+	}
 }
